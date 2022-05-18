@@ -3,13 +3,32 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
+var jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 //port 
 const port = process.env.PORT || 4000;
+const access_token = process.env.ACCESS_TOKEN;
 //middleware
 app.use(express.json());
 app.use(cors());
+const verifyJWT = (req, res, next) => {
+    const token = req.headers?.authorization?.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).send({ message: 'Unauthorized Access' })
+    }
+    jwt.verify(token, access_token, function (error, decoded) {
+
+        if (error) {
+
+            return res.status(403).send({ message: 'Frobidden Access' })
+        }
+
+        req.decoded = decoded;
+        next();
+    })
+}
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.deqka.mongodb.net/?retryWrites=true&w=majority`
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
@@ -28,7 +47,7 @@ const run = async () => {
         res.send(find);
     })
     //post
-    app.post('/tasks', async (req, res) => {
+    app.post('/tasks', verifyJWT, async (req, res) => {
         const body = req.body;
         const task = {
             status: `${body.status}`,
@@ -40,7 +59,7 @@ const run = async () => {
         res.send(result);
     })
     //put
-    app.put('/tasks/:id', async (req, res) => {
+    app.put('/tasks/:id', verifyJWT, async (req, res) => {
         const id = req.params.id;
         const filter = {
             _id: ObjectId(id)
@@ -57,7 +76,7 @@ const run = async () => {
 
 
     //delete
-    app.delete('/tasks/:id', async (req, res) => {
+    app.delete('/tasks/:id', verifyJWT, async (req, res) => {
         const id = req.params.id;
         const query = {
             _id: ObjectId(id)
@@ -66,6 +85,14 @@ const run = async () => {
         res.send(result);
 
     })
+    //app.sign intoken
+    app.put('/signIn/:email', verifyJWT, async (req, res) => {
+        const email = req.params.email;
+        console.log(email)
+        const token = jwt.sign({ email: email }, access_token, { expiresIn: '1d' });
+        res.send({ token: token });
+    })
+
 }
 run();
 
