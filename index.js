@@ -3,7 +3,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 //port 
 const port = process.env.PORT || 4000;
@@ -20,8 +20,52 @@ client.connect(err => {
 
 const run = async () => {
     const taskCollection = client.db("toddlu").collection("tasks");
-    //get,post
-    app.get('/tasks/:email')
+    //get
+    app.get('/tasks', async (req, res) => {
+        const email = req.query.email;
+        const query = { email: email };
+        const find = await taskCollection.find(query).toArray();
+        res.send(find);
+    })
+    //post
+    app.post('/tasks', async (req, res) => {
+        const body = req.body;
+        const task = {
+            status: `${body.status}`,
+            email: `${body.email}`,
+            name: `${body.name}`,
+            desc: `${body.desc}`,
+        };
+        const result = await taskCollection.insertOne(task);
+        res.send(result);
+    })
+    //put
+    app.put('/tasks/:id', async (req, res) => {
+        const id = req.params.id;
+        const filter = {
+            _id: ObjectId(id)
+        }
+        const options = { upsert: true };
+        const updateDoc = {
+            $set: {
+                status: `${req.body.status}`
+            },
+        };
+        const result = await taskCollection.updateOne(filter, updateDoc, options);
+        res.send(result);
+    })
+
+
+    //delete
+    app.delete('/tasks/:id', async (req, res) => {
+        const id = req.params.id;
+        const query = {
+            _id: ObjectId(id)
+        }
+        const result = await taskCollection.deleteOne(query);
+        res.send(result);
+
+    })
 }
 run();
 
